@@ -1,156 +1,39 @@
 use std::ops::{Index, IndexMut};
 
-use crossterm::style::Color;
-use noise::{NoiseFn, OpenSimplex};
-use serde::{Deserialize, Serialize};
+use noise::OpenSimplex;
 
 use crate::util::{Coord, Dim};
 
-use super::Game;
-
-pub const CHUNK_WIDTH: usize = 16;
-pub const CHUNK_HEIGHT: usize = 256;
-
-pub const TERRAIN_HEIGHT: usize = 128;
-pub const TERRAIN_SCALE: f64 = 6.0;
+use super::{
+    chunk::{Chunk, Tile, CHUNK_WIDTH},
+    Game,
+};
 
 pub const CHUNKS_LOADED_RADIUS: Dim = 16;
 
-#[derive(Serialize, Deserialize)]
-pub struct Chunk {
-    world_position: Dim,
-    tiles: Vec<Option<Tile>>,
+pub struct Terrain {
+    noise: OpenSimplex,
+    loaded_chunks: Vec<Chunk>,
 }
 
-impl Chunk {
-    pub fn new(world_position: Dim) -> Self {
+impl Terrain {
+    pub fn new() -> Self {
+        // TODO: randomize the seed value.
+        let seed = 0;
+
         Self {
-            world_position,
-            tiles: vec![None; CHUNK_WIDTH * CHUNK_HEIGHT],
+            noise: OpenSimplex::new(seed),
+            loaded_chunks: vec![],
         }
     }
 
-    pub fn regenerate(&mut self, noise: &OpenSimplex) {
-        for col in 0..CHUNK_WIDTH {
-            let world_position = self.world_position() + col as Dim;
-            let chunk_position = world_position as f64 / CHUNK_WIDTH as f64;
-            let noise_position = chunk_position / TERRAIN_SCALE;
-
-            let noise_value = noise.get([noise_position, 0.0]);
-            let height_scale = noise_value * 0.5 + 0.5;
-
-            let height = height_scale * TERRAIN_HEIGHT as f64;
-            let height = height as usize;
-
-            let mut layers = [
-                (1, Tile::Grass),
-                (5, Tile::GrassyDirt),
-                (12, Tile::Dirt),
-                (CHUNK_HEIGHT, Tile::Stone),
-            ];
-
-            let mut layer_idx = 0;
-
-            for row in (0..CHUNK_HEIGHT).rev() {
-                let coord = Coord {
-                    row: row as Dim,
-                    col: world_position,
-                };
-
-                self[coord] = {
-                    if row <= height {
-                        let layer = &mut layers[layer_idx];
-
-                        layer.0 -= 1;
-
-                        if layer.0 == 0 {
-                            layer_idx += 1;
-                        }
-
-                        Some(layer.1)
-                    } else {
-                        None
-                    }
-                };
-            }
-        }
-    }
-
-    fn flat_index(&self, index: Coord) -> Option<usize> {
-        if index.row < 0 || index.row >= CHUNK_HEIGHT as Dim {
-            return None;
-        }
-
-        let col = index.col - self.world_position();
-
-        if col < 0 || col >= CHUNK_WIDTH as Dim {
-            return None;
-        }
-
-        let index = col * CHUNK_HEIGHT as Dim + index.row;
-        Some(index as usize)
-    }
-
-    pub fn world_position(&self) -> Dim {
-        self.world_position
-    }
-
-    pub fn chunk_position(&self) -> Dim {
-        self.world_position / CHUNK_WIDTH as Dim
+    pub fn loaded_chunks(&self) -> &[Chunk] {
+        &self.loaded_chunks
     }
 }
 
-/// Uses world coordinates for indexing.
-impl Index<Coord> for Chunk {
-    type Output = Option<Tile>;
-
-    fn index(&self, index: Coord) -> &Self::Output {
-        if let Some(index) = self.flat_index(index) {
-            &self.tiles[index]
-        } else {
-            &None
-        }
-    }
-}
-
-/// Uses world coordinates for indexing.
-impl IndexMut<Coord> for Chunk {
-    fn index_mut(&mut self, index: Coord) -> &mut Self::Output {
-        let index = self
-            .flat_index(index)
-            .expect("Index out of bounds; check it with `contains` before `index_mut`");
-
-        &mut self.tiles[index]
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum Tile {
-    Dirt,
-    Stone,
-    GrassyDirt,
-    Grass,
-    Flower(Color),
-}
-
-impl Tile {
-    pub fn is_impassable(&self) -> bool {
-        use Tile::*;
-
-        match self {
-            Grass | Flower(_) => false,
-            _ => true,
-        }
-    }
-}
-
-impl Game {
-    pub fn load_chunks_around_camera(&mut self) {
-        let chunk_pos = |world_col| world_col / CHUNK_WIDTH as Dim;
-        let world_pos = |chunk_pos| chunk_pos * CHUNK_WIDTH as Dim;
-
-        let center_chunk = chunk_pos(self.camera.position.col);
-
+impl Terrain {
+    fn load_chunks_around(&mut self, center_chunk: Dim) {
         let start = center_chunk - CHUNKS_LOADED_RADIUS;
         let end = center_chunk + CHUNKS_LOADED_RADIUS;
 
@@ -166,7 +49,10 @@ impl Game {
                 exclusions.push(pos);
                 i += 1;
             } else {
-                self.loaded_chunks.remove(i);
+                let unloaded_chunk = self.loaded_chunks.remove(i);
+
+                // TODO: save chunk.
+                let _ = unloaded_chunk;
             }
         }
 
@@ -175,10 +61,62 @@ impl Game {
                 continue;
             }
 
-            let mut chunk = Chunk::new(world_pos(pos));
-            chunk.regenerate(&self.terrain_noise);
+            let mut new_chunk = Chunk::new(pos * CHUNK_WIDTH as Dim);
 
-            self.loaded_chunks.push(chunk)
+            // TODO: load chunk if available.
+            new_chunk.regenerate(&self.noise);
+
+            self.loaded_chunks.push(new_chunk)
         }
+    }
+}
+
+impl Index<Coord> for Terrain {
+    type Output = Option<Tile>;
+
+    fn index(&self, index: Coord) -> &Self::Output {
+        let mut chunk = None;
+
+        for loaded_chunk in &self.loaded_chunks {
+            let pos = loaded_chunk.world_position();
+            let range = pos..(pos + CHUNK_WIDTH as Dim);
+
+            if range.contains(&index.col) {
+                chunk = Some(loaded_chunk);
+                break;
+            }
+        }
+
+        if let Some(chunk) = chunk {
+            &chunk[index]
+        } else {
+            &None
+        }
+    }
+}
+
+impl IndexMut<Coord> for Terrain {
+    fn index_mut(&mut self, index: Coord) -> &mut Self::Output {
+        let mut chunk = None;
+
+        for loaded_chunk in &mut self.loaded_chunks {
+            let pos = loaded_chunk.world_position();
+            let range = pos..(pos + CHUNK_WIDTH as Dim);
+
+            if range.contains(&index.col) {
+                chunk = Some(loaded_chunk);
+                break;
+            }
+        }
+
+        // TODO: write an error message for `expect`.
+        chunk.map(|chunk| &mut chunk[index]).unwrap()
+    }
+}
+
+impl Game {
+    pub fn load_chunks_around_camera(&mut self) {
+        let center_chunk = self.camera.position.col / CHUNK_WIDTH as Dim;
+        self.terrain.load_chunks_around(center_chunk);
     }
 }

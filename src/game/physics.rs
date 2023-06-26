@@ -1,17 +1,12 @@
-use crate::util::{Coord, Dim, DimReal};
+use crate::util::{Coord, DimReal};
 
 use super::{
     entity::{Entity, MovementMode},
+    terrain::Terrain,
     Game,
 };
 
 pub const TIMESTEP: DimReal = 1.0 / 60.0;
-
-#[derive(Clone)]
-pub struct AABB {
-    pub width: Dim,
-    pub height: Dim,
-}
 
 impl Game {
     pub fn update_physics_bodies(&mut self) {
@@ -51,115 +46,48 @@ impl Game {
         let mut entities = self.entities.clone();
 
         for entity in &mut entities {
-            self.solve_collision(entity);
+            entity.on_ground = false;
+            entity.collide(&self.terrain);
         }
 
         self.entities = entities;
     }
-
-    fn solve_collision(&self, entity: &mut Entity) {
-        entity.on_ground = false;
-
-        let left = entity.left_edge();
-        let right = entity.right_edge();
-        let bottom = entity.bottom_edge();
-        let top = entity.top_edge();
-
-        let tile_exists = |point| {
-            let mut result = false;
-
-            for chunk in &self.loaded_chunks {
-                match chunk[point] {
-                    Some(tile) => {
-                        result = tile.is_impassable();
-                        break;
-                    }
-                    None => (),
-                };
-            }
-
-            result
-        };
-
-        for col in left..=right {
-            let point = Coord {
-                row: bottom - 1,
-                col,
-            };
-
-            if tile_exists(point) && entity.collide_below(point) {
-                break;
-            }
-
-            let point = Coord { row: top + 1, col };
-
-            if tile_exists(point) && entity.collide_above(point) {
-                break;
-            }
-        }
-
-        for row in bottom..=top {
-            let point = Coord { row, col: left - 1 };
-
-            if tile_exists(point) && entity.collide_left(point) {
-                break;
-            }
-
-            let point = Coord {
-                row,
-                col: right + 1,
-            };
-
-            if tile_exists(point) && entity.collide_right(point) {
-                break;
-            }
-        }
-    }
 }
 
 impl Entity {
-    fn collide_below(&mut self, point: Coord) -> bool {
-        if self.velocity.row < 0.0 {
-            self.set_bottom_edge(point.row + 1);
+    fn collide(&mut self, terrain: &Terrain) {
+        let tile_exists = |entity: &Entity, d_row, d_col| -> bool {
+            let point = entity.tile_pos()
+                + Coord {
+                    row: d_row,
+                    col: d_col,
+                };
+
+            let tile = terrain[point];
+            tile.map(|tile| tile.is_impassable()).unwrap_or(false)
+        };
+
+        let reset_row = |entity: &mut Entity| {
+            entity.velocity.row = 0.0;
+            entity.position.row = entity.tile_pos().to_real().row;
+        };
+
+        let reset_col = |entity: &mut Entity| {
+            entity.velocity.col = 0.0;
+            entity.position.col = entity.tile_pos().to_real().col;
+        };
+
+        if self.velocity.row < 0.0 && tile_exists(self, -1, 0) {
             self.on_ground = true;
-            self.velocity.row = 0.0;
-
-            true
-        } else {
-            false
+            reset_row(self);
+        } else if self.velocity.row > 0.0 && tile_exists(self, 1, 0) {
+            reset_row(self);
         }
-    }
 
-    fn collide_above(&mut self, point: Coord) -> bool {
-        if self.velocity.row > 0.0 {
-            self.set_top_edge(point.row - 1);
-            self.velocity.row = 0.0;
-
-            true
-        } else {
-            false
-        }
-    }
-
-    fn collide_left(&mut self, point: Coord) -> bool {
-        if self.velocity.col < 0.0 {
-            self.set_left_edge(point.col + 1);
-            self.velocity.col = 0.0;
-
-            true
-        } else {
-            false
-        }
-    }
-
-    fn collide_right(&mut self, point: Coord) -> bool {
-        if self.velocity.col > 0.0 {
-            self.set_right_edge(point.col - 1);
-            self.velocity.col = 0.0;
-
-            true
-        } else {
-            false
+        if self.velocity.col < 0.0 && tile_exists(self, 0, -1) {
+            reset_col(self);
+        } else if self.velocity.col > 0.0 && tile_exists(self, 0, 1) {
+            reset_col(self);
         }
     }
 }

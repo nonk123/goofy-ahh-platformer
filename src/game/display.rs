@@ -3,8 +3,8 @@ use crossterm::style::Color;
 use crate::util::{Coord, Dim};
 
 use super::{
+    chunk::{Tile, CHUNK_HEIGHT, CHUNK_WIDTH},
     renderer::{Pixel, Screen},
-    terrain::{Tile, CHUNK_HEIGHT, CHUNK_WIDTH},
     Game,
 };
 
@@ -16,7 +16,7 @@ impl Game {
     }
 
     pub fn display_terrain(&mut self, screen: &mut Screen) {
-        for chunk in &self.loaded_chunks {
+        for chunk in self.terrain.loaded_chunks() {
             for row in 0..CHUNK_HEIGHT {
                 for col in 0..CHUNK_WIDTH {
                     let chunk_coord = Coord {
@@ -24,20 +24,10 @@ impl Game {
                         col: chunk.world_position() + col as Dim,
                     };
 
-                    let screen_coord = self.camera.project(chunk_coord, screen);
-
-                    if screen_coord.row < 0 || screen_coord.row >= screen.rows() {
-                        continue;
-                    }
-
-                    if screen_coord.col < 0 || screen_coord.col >= screen.cols() {
-                        continue;
-                    }
-
                     let pixel = chunk[chunk_coord].map(|x| x.display());
 
                     if let Some(pixel) = pixel {
-                        screen[screen_coord] = pixel;
+                        pixel.blit(chunk_coord, &self.camera, screen);
                     }
                 }
             }

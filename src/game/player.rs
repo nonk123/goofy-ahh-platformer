@@ -1,34 +1,22 @@
 use crossterm::style::Color;
 
-use crate::{game::anim::Animation, util::DimReal};
+use crate::{
+    game::{anim::Animation, renderer::Pixel},
+    util::DimReal,
+};
 
 use super::{
+    chunk::TERRAIN_HEIGHT,
     entity::{Entity, EntityFlag, MovementMode},
-    physics::AABB,
-    renderer::Pixel,
-    terrain::TERRAIN_HEIGHT,
-    text_art::TextArt,
     Game,
 };
 
 pub fn new_player() -> Entity {
     let animations = {
-        let pix = |character, color| {
-            Some(Pixel {
-                character,
-                fg_color: color,
-                bg_color: None,
-            })
-        };
-
-        let basic = Animation::new(vec![{
-            let buffer = vec![
-                pix('A', Color::Blue),
-                pix('O', Color::Yellow),
-                pix('=', Color::Red),
-            ];
-
-            TextArt::try_new(buffer, 3, 1).unwrap()
+        let basic = Animation::new(vec![Pixel {
+            character: '@',
+            fg_color: Color::Grey,
+            bg_color: None,
         }]);
 
         vec![basic]
@@ -37,11 +25,6 @@ pub fn new_player() -> Entity {
     let mut player = Entity::new(animations);
 
     player.position.row = (TERRAIN_HEIGHT + 1) as DimReal;
-
-    player.movement_hitbox = Some(AABB {
-        width: 1,
-        height: 2,
-    });
 
     player.movement_mode = MovementMode::Walking {
         walking_speed: 8.0,

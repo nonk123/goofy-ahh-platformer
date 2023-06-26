@@ -4,15 +4,14 @@ use crate::util::{Coord, CoordReal, Dim, DimReal};
 
 use super::{
     anim::Animation,
-    physics::AABB,
     renderer::{Camera, Pixel, Screen},
 };
 
-fn entity_pixel_overwrite(output: &mut Pixel, replacement: Pixel) {
+fn entity_pixel_overwrite(output: &mut Pixel, replacement: &Pixel) {
     let empty = Pixel::EMPTY;
 
     if output.character == empty.character {
-        *output = replacement;
+        *output = *replacement;
     } else if output.bg_color.is_none() {
         output.bg_color = Some(replacement.fg_color);
     }
@@ -27,7 +26,6 @@ pub struct Entity {
     pub current_animation: usize,
     // TODO: use bitflags instead.
     pub flags: HashSet<EntityFlag>,
-    pub movement_hitbox: Option<AABB>,
     pub movement_mode: MovementMode,
     pub movement_controls: MovementControls,
     pub deletion_flag: bool,
@@ -44,7 +42,6 @@ impl Entity {
             animations,
             current_animation: 0,
             flags: HashSet::new(),
-            movement_hitbox: None,
             movement_mode: MovementMode::Static,
             movement_controls: MovementControls::EMPTY,
             deletion_flag: false,
@@ -59,74 +56,10 @@ impl Entity {
         }
     }
 
-    pub fn width(&self) -> Dim {
-        match &self.movement_hitbox {
-            Some(hitbox) => hitbox.width,
-            None => 0,
-        }
-    }
-
-    pub fn half_width(&self) -> Dim {
-        self.width() / 2
-    }
-
-    pub fn height(&self) -> Dim {
-        match &self.movement_hitbox {
-            Some(hitbox) => hitbox.height,
-            None => 0,
-        }
-    }
-
-    pub fn left_edge(&self) -> Dim {
-        self.tile_pos().col - self.half_width()
-    }
-
-    pub fn set_left_edge(&mut self, col: Dim) {
-        self.position.col = (col + self.half_width()) as DimReal;
-    }
-
-    pub fn right_edge(&self) -> Dim {
-        self.tile_pos().col + self.half_width()
-    }
-
-    pub fn set_right_edge(&mut self, col: Dim) {
-        self.position.col = (col - self.half_width()) as DimReal;
-    }
-
-    pub fn top_edge(&self) -> Dim {
-        self.bottom_edge() + self.height() - 1
-    }
-
-    pub fn set_top_edge(&mut self, row: Dim) {
-        self.position.row = (row - self.height() - 1) as DimReal;
-    }
-
-    pub fn bottom_edge(&self) -> Dim {
-        self.tile_pos().row
-    }
-
-    pub fn set_bottom_edge(&mut self, row: Dim) {
-        self.position.row = row as DimReal;
-    }
-
-    pub fn center(&self) -> CoordReal {
-        CoordReal {
-            row: self.position.row + self.height() as DimReal / 2.0,
-            col: self.position.col + self.width() as DimReal / 2.0,
-        }
-    }
-
     pub fn display(&mut self, camera: &Camera, screen: &mut Screen) {
         let tile_pos = self.tile_pos();
-
         let frame = self.animations[self.current_animation].next_frame();
-
-        let offset = Coord {
-            row: 0,
-            col: frame.cols() / 2,
-        };
-
-        frame.blit_custom(tile_pos + offset, camera, screen, entity_pixel_overwrite);
+        frame.blit_custom(tile_pos, camera, screen, entity_pixel_overwrite);
     }
 }
 

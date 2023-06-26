@@ -24,6 +24,12 @@ impl Camera {
     }
 }
 
+pub type OverwriteFn = fn(&mut Pixel, &Pixel);
+
+pub fn overwrite(output: &mut Pixel, replacement: &Pixel) {
+    *output = *replacement;
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct Pixel {
     pub character: char,
@@ -38,6 +44,30 @@ impl Pixel {
         fg_color: Color::Grey,
         bg_color: None,
     };
+
+    pub fn blit(&self, offset: Coord, camera: &Camera, screen: &mut Screen) {
+        self.blit_custom(offset, camera, screen, overwrite);
+    }
+
+    pub fn blit_custom(
+        &self,
+        offset: Coord,
+        camera: &Camera,
+        screen: &mut Screen,
+        overwrite_fn: OverwriteFn,
+    ) {
+        let screen_coord = camera.project(offset, screen);
+
+        if screen_coord.row < 0 || screen_coord.row >= screen.rows() {
+            return;
+        }
+
+        if screen_coord.col < 0 || screen_coord.col >= screen.cols() {
+            return;
+        }
+
+        overwrite_fn(&mut screen[screen_coord], &self);
+    }
 }
 
 impl Default for Pixel {

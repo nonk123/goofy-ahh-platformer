@@ -1,13 +1,13 @@
-use super::text_art::TextArt;
+use super::renderer::Pixel;
 
 #[derive(Clone)]
 pub struct Animation {
-    frames: Vec<TextArt>,
+    frames: Vec<Pixel>,
     current_frame: usize,
 }
 
 impl Animation {
-    pub fn new(frames: Vec<TextArt>) -> Self {
+    pub fn new(frames: Vec<Pixel>) -> Self {
         Self {
             frames,
             current_frame: 0,
@@ -18,7 +18,7 @@ impl Animation {
         self.current_frame = 0;
     }
 
-    pub fn next_frame(&mut self) -> &TextArt {
+    pub fn next_frame(&mut self) -> &Pixel {
         let frame = &self.frames[self.current_frame];
 
         if self.current_frame + 1 >= self.frames.len() {

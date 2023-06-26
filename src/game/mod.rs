@@ -1,17 +1,16 @@
 use std::collections::HashSet;
 
-use noise::OpenSimplex;
-
 use crate::util::{Coord, CoordReal};
 
 use self::{
     entity::{Entity, EntityFlag},
     input::Key,
     renderer::{Camera, Screen},
-    terrain::Chunk,
+    terrain::Terrain,
 };
 
 pub mod anim;
+pub mod chunk;
 pub mod display;
 pub mod entity;
 pub mod input;
@@ -19,32 +18,26 @@ pub mod physics;
 pub mod player;
 pub mod renderer;
 pub mod terrain;
-pub mod text_art;
 pub mod update;
 
 pub struct Game {
     exit_requested: bool,
     camera: Camera,
     entities: Vec<Entity>,
-    loaded_chunks: Vec<Chunk>,
-    terrain_noise: OpenSimplex,
+    terrain: Terrain,
     gravity: CoordReal,
     held_keys: HashSet<Key>,
 }
 
 impl Game {
     pub fn new() -> Self {
-        // TODO: randomize the seed value.
-        let seed = 0;
-
         Self {
             exit_requested: false,
             camera: Camera {
                 position: Coord::ZERO,
             },
             entities: vec![],
-            loaded_chunks: vec![],
-            terrain_noise: OpenSimplex::new(seed),
+            terrain: Terrain::new(),
             gravity: CoordReal {
                 row: -10.0,
                 col: 0.0,
