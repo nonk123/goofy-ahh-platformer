@@ -1,0 +1,12 @@
+[package]
+name = "deez-nuts-deluxe"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+crossterm = { version = "0.26.1", features = ["serde"] }
+noise = { version = "0.8.2", features = ["std"] }
+rand = "0.8.5"
+serde = { version = "1.0.164", features = ["alloc", "derive"] }
