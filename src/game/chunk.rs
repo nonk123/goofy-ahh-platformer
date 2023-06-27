@@ -12,7 +12,7 @@ pub const CHUNK_HEIGHT: usize = 256;
 pub const TERRAIN_HEIGHT: usize = 196;
 pub const TERRAIN_BASE: usize = 128;
 
-pub const TERRAIN_SCALE: f64 = 3.0;
+pub const TERRAIN_SCALE: f64 = 0.5;
 
 #[derive(Serialize, Deserialize)]
 pub struct Chunk {

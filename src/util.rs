@@ -1,4 +1,4 @@
-use std::ops::{Add, AddAssign, Mul};
+use std::ops::{Add, AddAssign, Mul, Sub};
 
 pub type Dim = i64;
 pub type DimReal = f32;
@@ -54,8 +54,15 @@ impl Add for CoordReal {
 
 impl AddAssign for CoordReal {
     fn add_assign(&mut self, rhs: Self) {
-        self.row += rhs.row;
-        self.col += rhs.col;
+        *self = *self + rhs;
+    }
+}
+
+impl Sub for CoordReal {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        self + (rhs * -1.0)
     }
 }
 

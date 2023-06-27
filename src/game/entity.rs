@@ -21,6 +21,7 @@ fn entity_pixel_overwrite(output: &mut Pixel, replacement: &Pixel) {
 pub struct Entity {
     pub position: CoordReal,
     pub velocity: CoordReal,
+    pub mass: DimReal,
     pub gravity_scale: DimReal,
     animations: Vec<Animation>,
     pub current_animation: usize,
@@ -38,6 +39,7 @@ impl Entity {
         Self {
             position: CoordReal::ZERO,
             velocity: CoordReal::ZERO,
+            mass: 1.0,
             gravity_scale: 1.0,
             animations,
             current_animation: 0,

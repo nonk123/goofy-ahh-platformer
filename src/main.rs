@@ -24,11 +24,8 @@ fn main() -> crossterm::Result<()> {
     use crossterm::terminal;
 
     terminal::enable_raw_mode()?;
-
     let result = runner::crossterm_runner();
     terminal::disable_raw_mode()?;
-
-    result?;
 
     {
         let mut stdout = std::io::stdout().lock();
@@ -38,5 +35,5 @@ fn main() -> crossterm::Result<()> {
             .execute(PopKeyboardEnhancementFlags)?;
     }
 
-    Ok(())
+    result
 }

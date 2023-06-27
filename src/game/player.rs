@@ -26,6 +26,8 @@ pub fn new_player() -> Entity {
 
     player.position.row = (TERRAIN_HEIGHT + 1) as DimReal;
 
+    player.mass = 50.0;
+
     player.movement_mode = MovementMode::Walking {
         walking_speed: 8.0,
         jump_impulse: 10.0,
